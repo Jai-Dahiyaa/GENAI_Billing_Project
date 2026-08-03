@@ -17,3 +17,25 @@
 * **Meta Business Portfolio Activation:** Complete `Genaibilling` Business Portfolio initialization post-cooldown.
 * **WhatsApp Cloud API Integration:** Extract Access Token, Phone Number ID, and WABA ID to implement backend message dispatch services.
 * **Prisma Migrations & Billing DTOs:** Run database migrations (`npx prisma migrate dev`) and construct TypeScript interfaces/DTOs for billing operations.
+
+---
+
+## [2026-08-03] - Global Architecture Setup, Standard Responses, Auth Utilities & Security Layer
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Global Standard Response & Exception Filter Pipeline:** Refactored `HttpExceptionFilter` and `TransformInterceptor` to enforce a standardized JSON response structure (`statusCode`, `success`, `message`, `data`, `timestamp`) across all API endpoints without duplicate messaging or nested `data.data` wrappers.
+* **JWT & Crypto Token Utility:** Created a NestJS `@Injectable()` `JwtService` leveraging Node.js native `crypto` module for generating and verifying cryptographically secure access and refresh tokens.
+* **Cryptographic OTP Engine:** Implemented `OtpUtil` using `crypto.randomInt` for 6-digit numeric OTP generation alongside HMAC SHA-256 hashing and timing-attack resistant verification (`crypto.timingSafeEqual`).
+* **Centralized Cookie Helper Utility:** Built a reusable `CookieUtil` abstraction to set and clear `httpOnly`, `secure`, and `sameSite` HTTP cookies across all auth endpoints (`setCookie`, `setAuthTokens`, `clearCookies`).
+* **Global Guard & Access Control Pattern:** Designed a centralized `AuthGuard` configured as `APP_GUARD` in `AppGatewaysModule` for default API protection, paired with a custom `@Public()` decorator to easily bypass verification for public routes. Added dynamic Valkey/Redis cache retrieval for SuperAdmin active branch context (`superadmin:active_branch:<userId>`).
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Overlapping response wrappers causing duplicated status fields and nested `data.data` payloads, alongside potential security risks of manually attaching Guards on every individual endpoint.
+* **Resolution (Architecture Decision):** Centralized response transformation inside `TransformInterceptor` by destructuring root fields, and switched to a **Global Guard + `@Public()` Decorator** architectural pattern to ensure 100% of API endpoints are secure by default.
+
+### Next Steps (Tomorrow):
+* **SignUp & Auth API Implementation:** Construct controller handlers and service logic for `signUpOTP`, `signUpOTPVerify`, `login`, and token refresh pipelines.
+* **Postman / Swagger E2E Testing:** Validate full authentication, OTP delivery/verification, and cookie persistence flows using Postman.
+
+---
