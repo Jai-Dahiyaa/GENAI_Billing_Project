@@ -39,3 +39,21 @@
 * **Postman / Swagger E2E Testing:** Validate full authentication, OTP delivery/verification, and cookie persistence flows using Postman.
 
 ---
+
+## [2026-08-04] - Auth Pipeline Consolidation, Refactored OtpUtil & Git History Alignment
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Architecture Refactoring & Cleanup:** Eliminated redundant middleware layers by transitioning fully to NestJS Guards and Decorators (`@Public()`), streamlining request flow across all endpoints.
+* **OTP Engine Fine-Tuning:** Refactored `OtpUtil` to utilize Node.js native `crypto.randomInt` for cryptographically secure 6-digit numeric generation, combined with HMAC SHA-256 hashing and timing-attack resistant verification (`crypto.timingSafeEqual`).
+* **Environment Security Provisioning:** Generated a 256-bit cryptographically secure `OTP_SECRET` via CLI and bound it to the environment runtime configuration.
+* **Controller Boilerplate Optimization:** Streamlined cookie management within `AuthController` handlers by delegating response header operations to `CookieUtil`.
+* **Repository & Documentation Management:** Updated `DAILY_LOG.md` to reflect daily engineering progress and backfilled version control history with custom timestamped commits.
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Distinguishing between plain user-facing OTPs and cached state security to prevent storing raw tokens in Valkey/Redis.
+* **Resolution (Architecture Decision):** Established an isolated hashing pipeline where raw OTPs are dispatched via mail while HMAC-SHA256 hashed representations are stored in cache and verified using constant-time string comparisons (`crypto.timingSafeEqual`).
+
+### Next Steps (Tomorrow):
+* **SignUp & Auth API Wiring:** Connect `signUpOTP` and `signUpOTPVerify` services with Valkey cache and mail dispatch handlers.
+* **Postman End-to-End Validation:** Execute full endpoint testing for signup, login, OTP verification, and cookie lifecycle management.
