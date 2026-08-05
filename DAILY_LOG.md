@@ -57,3 +57,24 @@
 ### Next Steps (Tomorrow):
 * **SignUp & Auth API Wiring:** Connect `signUpOTP` and `signUpOTPVerify` services with Valkey cache and mail dispatch handlers.
 * **Postman End-to-End Validation:** Execute full endpoint testing for signup, login, OTP verification, and cookie lifecycle management.
+
+---
+
+## [2026-08-05] - Custom Decorators Implementation, Password Utility & Nodemailer Setup
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Custom Param Decorators Provisioning:** Implemented `@CurrentUser()` and `@ClientInfo()` decorators to eliminate repetitive request parsing boilerplate across controllers for extracting authenticated user payload, client IP (supporting proxy/Cloudflare headers), and user-agent string.
+* **Encapsulated Password Utility:** Refactored password security methods into a clean static `PasswordUtils` class wrapping Bcrypt hashing (10 salt rounds) and comparison logic into single-class imports.
+* **SMTP Transporter Configuration:** Established Nodemailer configuration in `src/config/nodemailer.config.ts` utilizing Nodemailer Gmail service transport bound to environment variables (`EMAIL`, `EMAIL_PASS`).
+* **Pre-registration Cache Strategy:** Designed unverified signup state management where user details (`name`, `email`, `passwordHash`, `otp`) are held in cache with 10-minute TTL before database write upon OTP verification.
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Repetitive header parsing for IP/User-Agent and manual `req.user` destructuring cluttering controller handler signature and body.
+* **Resolution (Architecture Decision):** Implemented NestJS Custom Param Decorators to abstract contextual request extractions cleanly into single parameter annotations.
+
+### Next Steps (Tomorrow):
+* **Multi-Tenant Schema Design:** Define Prisma models for `User`, `Branch`, `CompanyProfile`, and `UserSession` supporting root `SUPER_ADMIN` and assigned `STAFF` roles.
+* **Dynamic Branch Switching:** Formulate Redis/Valkey cache context injection for SuperAdmin active branch switching in `AuthGuard`.
+
+---
