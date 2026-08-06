@@ -78,3 +78,22 @@
 * **Dynamic Branch Switching:** Formulate Redis/Valkey cache context injection for SuperAdmin active branch switching in `AuthGuard`.
 
 ---
+
+## [2026-08-06] - Multi-Branch SaaS Schema Architecture & Dynamic Branch Context Design
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Multi-Tenant Schema Design:** Finalized Prisma schema models for `User`, `UserSession`, `CompanyProfile`, and `Branch` to support multi-branch operations and role-based access control.
+* **Role Separation & Pre-registration Scope:** Configured `Role` enum defaulting to `SUPER_ADMIN` for direct website registrations, isolating staff creation to internal admin workflows with assigned `branchId`.
+* **Session Lifecycle Data Modeling:** Created `UserSession` entity mapping to store active refresh tokens, user-agent details, IP addresses, and explicit revocation flags (`isRevoked`).
+* **Dynamic Active Branch Context Architecture:** Designed Redis/Valkey caching strategy (`superadmin:active_branch:${userId}`) inside `AuthGuard` to allow SuperAdmin dynamic branch switching without modifying JWT payloads or user DB records.
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Preventing data leaks between branches while allowing SuperAdmins seamless access across all branches without polluting the `User` table with multiple branch columns.
+* **Resolution (Architecture Decision):** Kept a single optional `branchId` column in `User` (populated for Staff, `null` for SuperAdmin). AuthGuard dynamically injects `branchId` from cache for SuperAdmin, keeping controllers completely decoupled from role-switching logic.
+
+### Next Steps (Tomorrow):
+* **Auth Controller & Service Wiring:** Complete end-to-end handler implementation for signup OTP, verification, login, logout, and refresh token rotation.
+* **Error Handling & Response Normalization:** Verify exception filters and standardize API response formats across all auth endpoints.
+
+---
