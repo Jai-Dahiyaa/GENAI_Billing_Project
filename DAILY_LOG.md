@@ -97,3 +97,22 @@
 * **Error Handling & Response Normalization:** Verify exception filters and standardize API response formats across all auth endpoints.
 
 ---
+
+## [2026-08-07] - Auth Service Wiring, Session Persistence & Password Recovery Pipeline
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Auth Endpoints & Controller Wiring:** Completed controller and service implementations for `signUpOTP`, `signUpOTPVerify`, `loginController`, `refreshTokenController`, and `loggedOutController`.
+* **Session Lifecycle Persistence:** Wired session management into `signUpOTPVerify` and `loginController` to persist user agent, IP address, and token expiry into `UserSession` table upon authentication.
+* **Forgot Password Pipeline:** Implemented `forgot-password`, `forgot-otp-verify`, and `reset-password` endpoints utilizing temporary encrypted token cookies for secure state transition.
+* **HTTP-Only Cookie Management:** Configured standard secure cookie attributes (`httpOnly`, `secure`, `sameSite: 'lax'`) for `accessToken`, `refreshToken`, and temporary verification tokens (`signup_token`, `forgotPassToken`).
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Ensuring secure OTP state transitions across multiple steps without creating unverified user records in DB.
+* **Resolution (Architecture Decision):** Bound temporary verification state to HTTP-Only `signup_token` / `forgotPassToken` cookies alongside Redis cache keys, ensuring user record creation happens strictly after successful OTP verification.
+
+### Next Steps (Tomorrow):
+* **Company & Branch CRUD APIs:** Implement Company Profile setup and Branch management endpoints (`/company`, `/branch`).
+* **Postman Integration Testing:** Execute end-to-end verification of entire Module 1 auth flow and session revocations.
+
+---
