@@ -116,3 +116,22 @@
 * **Postman Integration Testing:** Execute end-to-end verification of entire Module 1 auth flow and session revocations.
 
 ---
+
+## [2026-08-08] - Module 1 Scope Finalization, API Mapping & Multi-Tenant Architecture Alignment
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Module 1 API Specification & Mapping:** Finalized complete endpoint structures for Authentication, Company Profile (`/company`), Branch Management (`/branch`), and Staff Onboarding (`/staff`).
+* **Role & Branch Context Architecture Alignment:** Confirmed dynamic branch switching for `SUPER_ADMIN` via Redis cache while ensuring `STAFF` roles remain strictly locked to their database-assigned `branchId`.
+* **Schema Verification & Validation:** Reviewed and validated Prisma models (`User`, `UserSession`, `CompanyProfile`, `Branch`) for multi-tenant B2B compliance and foreign key integrity.
+* **Codebase & Documentation Cleanup:** Refactored static utility classes (`PasswordUtils`), finalized Nodemailer transport config, and updated progress documentation in `DAILY_LOG.md`.
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Determining how `SUPER_ADMIN` accesses multiple branches without creating duplicate branch columns or forcing re-authentication.
+* **Resolution (Architecture Decision):** Configured `SUPER_ADMIN` user record with `branchId: null` in DB, relying on Redis cache (`superadmin:active_branch:${userId}`) to dynamically populate `req.user.branchId` in `AuthGuard`.
+
+### Next Steps (Tomorrow):
+* **Company & Branch CRUD Implementation:** Build and test `/company/create`, `/branch/create`, and active branch switcher endpoints.
+* **Staff Management Onboarding:** Implement internal `/staff/create` endpoint with explicit role and branch assignment.
+
+---
