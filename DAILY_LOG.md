@@ -135,3 +135,23 @@
 * **Staff Management Onboarding:** Implement internal `/staff/create` endpoint with explicit role and branch assignment.
 
 ---
+
+## [2026-08-09] - Raw SQL Migration Strategy, PostgreSQL UUID Defaults & Constraint Alignment
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Database Persistence Layer Refactoring:** Shifted primary repository implementation pattern to raw SQL execution (`$executeRaw` / `$queryRaw`) to align with production performance standards and interview query evaluation.
+* **PostgreSQL Native UUID Provisions:** Refactored Prisma schema to replace client-side `@default(uuid())` with database-level `@default(dbgenerated("gen_random_uuid()"))` for zero-dependency primary key generation.
+* **Timestamp & Default Constraint Synchronization:** Configured `@default(now())` on `updatedAt` schema fields to ensure raw SQL `INSERT` queries execute cleanly without needing manual timestamp payloads.
+* **Migration Cleanup & Database Reset:** Re-architected corrupt migration history, resolved foreign key drop constraint conflicts (`2BP01`), and performed a clean migration reset (`npx prisma migrate reset`).
+* **Prepared Statement & Query Sanitization:** Sanitized raw query parameterization syntax, resolving PostgreSQL parameter binding mismatch (`08P01`) and verifying unique constraint enforcement (`23505`).
+
+### Challenges & System Architecture Decisions:
+* **Challenge:** Prisma's JS-level decorators (`uuid()`, `@updatedAt`) do not trigger during direct `$executeRaw` queries, causing null value constraint violations (`23502`) and parameter count errors (`08P01`).
+* **Resolution (Architecture Decision):** Enforced PostgreSQL engine-level defaults (`gen_random_uuid()`, `NOW()`) directly in the database DDL, delegating UUID generation and timestamping fully to PostgreSQL while maintaining safe parameter interpolation without literal quotes.
+
+### Next Steps (Tomorrow):
+* **Module 1 API Implementation:** Build out repositories, services, and controllers for Auth, Company Profile, Branch Management, and Staff Onboarding.
+* **Postman Integration Verification:** Execute full end-to-end testing for registration, OTP verification, company setup, and active branch switching.
+
+---
