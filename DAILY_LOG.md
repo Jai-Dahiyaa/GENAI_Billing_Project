@@ -155,3 +155,25 @@
 * **Postman Integration Verification:** Execute full end-to-end testing for registration, OTP verification, company setup, and active branch switching.
 
 ---
+
+## [2026-08-10] - RabbitMQ Microservice Architecture, Event-Driven Email Worker & SMTP Pipeline
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **RabbitMQ Message Broker Migration:** Configured NestJS `ClientsModule` with `Transport.RMQ`, replacing legacy Kafka bindings with `ClientProxy` emitters and `@EventPattern` payload handlers.
+* **Global Messaging Architecture:** Built a dedicated `@Global()` `RabbitMQModule` providing and exporting `ClientsModule` and `EmailJobs` to handle cross-module dependency injection seamlessly across the gateway app.
+* **Worker Microservice & Nodemailer Integration:** Implemented an asynchronous worker microservice (`EmailController` & `EmailService`) consuming `USER_REGISTER_OTP_SEND` queue events for background email dispatch.
+* **Environment Configuration & Bootstrap Fixes:** Resolved NestJS microservice environment loading timing issues by binding `ConfigModule` with `process.cwd()` path resolution in `AppWorkerModule`.
+* **Branded Email Template Design:** Designed a responsive, production-ready HTML email template for **NexCorp Billing** featuring corporate header branding, isolated OTP highlight badges, and security disclaimers.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** NestJS dependency resolution failures (`UnknownDependenciesException` & `UnknownExportException`) when injecting `EmailJobs` inside `AuthModule`.
+* **Resolution:** Registered `EmailJobs` within `RabbitMQModule`'s `providers` array while exporting both `ClientsModule` and `EmailJobs` globally from `AppModule`.
+* **Challenge 2:** Nodemailer authentication crashes (`EAUTH 535 5.7.8 BadCredentials`) and payload recipient errors (`EENVELOPE / No recipients defined`).
+* **Resolution:** Corrected parameter argument ordering `(email, otp)` across gateway/worker interfaces, implemented auto-trimming for 16-character Gmail App Passwords to strip space delimiters, and shifted transporter instantiation to on-demand execution.
+
+### Next Steps (Tomorrow):
+* **Signup OTP Verification API:** Implement `POST /api/v1/auth/signup-otp-verify` to compare client OTP against hashed Valkey cache values, persist verified user to DB, and generate JWT tokens.
+* **Core Auth Endpoint Suite:** Build out Login OTP, Password Reset, and Token Refresh APIs in `AuthModule`.
+
+---
