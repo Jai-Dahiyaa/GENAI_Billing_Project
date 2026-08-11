@@ -177,3 +177,26 @@
 * **Core Auth Endpoint Suite:** Build out Login OTP, Password Reset, and Token Refresh APIs in `AuthModule`.
 
 ---
+
+## [2026-08-11] - RBAC Security, Cookie AuthGuard Pipeline & Atomic Prisma Raw SQL Transactions
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Role-Based Access Control (RBAC):** Built a custom `@Roles()` decorator and `RolesGuard` using NestJS `Reflector` and `ExecutionContext` to handle dynamic role authorization (`SUPER_ADMIN`, `ADMIN`, `ACCOUNTANT`, etc.).
+* **AuthGuard & Request Context Pipeline:** Enhanced `AuthGuard` to parse JWT tokens (`accessToken` / `registerOtpVerify`) directly from HTTP cookies, decode claims (`userId`, `email`, `role`, `branchId`), and attach typed payloads to `IAuthorizedRequest`.
+* **Registration & Secure Resend APIs:** Implemented `POST /api/v1/auth/user-register` and `POST /api/v1/auth/register-otp-resend`. Utilized cookie-driven context passing on resend endpoints without `@Public()` bypasses to prevent OTP email spamming.
+* **Atomic Raw SQL Transactions:** Designed a multi-table atomic registration method inside `AuthRepository` using `this.prisma.$transaction`. Programmatically created a default `Main Branch` entry, retrieved its generated UUID, and linked it to the new `SUPER_ADMIN` user record.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** `req.user` evaluated as `undefined` in `register-otp-verify` and `register-otp-resend` controller endpoints.
+* **Resolution:** Removed the `@Public()` decorator to allow `AuthGuard` execution on temporary cookie tokens, and replaced Express `Request` with `IAuthorizedRequest` to satisfy TypeScript context typing.
+* **Challenge 2:** PostgreSQL Raw SQL execution crashes (`42601` Syntax Error, `42703` Column Not Found, `23502` Null Constraint).
+* **Resolution:** Corrected `* RETURNING;` syntax to `RETURNING *;`, wrapped camelCase column names in double quotes (`"passwordHash"`, `"branchId"`) to stop Postgres from auto-lowercasing identifiers, and fixed property name mapping on hashed password data.
+* **Challenge 3:** Prisma `$executeRaw` vs `$queryRaw` return type mismatch during multi-step user creation.
+* **Resolution:** Replaced `$executeRaw` (which returns affected row counts) with `$queryRaw` inside `tx.$transaction`. Replaced `RETURNING *` with explicit column projections (`RETURNING id, email, role, "branchId"`) to keep password hashes out of memory and match strict TypeScript interfaces.
+
+### Next Steps (Tomorrow):
+* **Active Branch Caching:** Implement active branch persistence in Valkey cache (`superadmin:active_branch:${userId}`) for multi-tenant and multi-branch operations.
+* **Login & Session Management:** Build `POST /api/v1/auth/login`, generate dual JWT tokens (`accessToken` 15m / `refreshToken` 7d), and implement branch switching & logout endpoints to complete Module 1.
+
+---
