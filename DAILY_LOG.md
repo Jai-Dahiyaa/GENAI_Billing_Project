@@ -200,3 +200,27 @@
 * **Login & Session Management:** Build `POST /api/v1/auth/login`, generate dual JWT tokens (`accessToken` 15m / `refreshToken` 7d), and implement branch switching & logout endpoints to complete Module 1.
 
 ---
+
+## [2026-08-12] - Login Pipeline, Dual Token Issuance (JWT) & Valkey Branch Caching
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Login Authentication Pipeline:** Implemented `POST /api/v1/auth/login` endpoint validating user credentials via secure hash verification (`argon2`), handling active account status checks, and blocking login attempts for unverified accounts.
+* **Dual-Token Architecture (Access & Refresh):** Built token issuance mechanism generating short-lived `accessToken` (15m TTL) for stateless authorization and long-lived `refreshToken` (7d TTL) for session persistence.
+* **Session Persistence Layer:** Designed database session tracking storing user session records in the `sessions` table with client metadata (`ipAddress`, `userAgent`, `isRevoked = false`, expiration timestamps).
+* **Valkey Branch State Caching:** Integrated Valkey (Redis) caching layer to persist active branch state for `SUPER_ADMIN` and multi-branch users (`superadmin:active_branch:${userId}`), ensuring zero DB overhead during branch resolution.
+* **Cookie Security & Delivery:** Configured secure HTTP-only cookies (`httpOnly: true`, `sameSite: 'lax'`, `secure: process.env.NODE_ENV === 'production'`) for seamless access and refresh token distribution.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Handling `SUPER_ADMIN` default branch resolution vs assigned employee branches during login without causing redundant SQL joins.
+* **Resolution:** Cached the primary branch UUID immediately into Valkey on login response creation, decoupling branch retrieval from standard authentication checks.
+* **Challenge 2:** Ensuring device/client traceability while handling token storage in the `sessions` table.
+* **Resolution:** Extracted client metadata (`req.ip`, `req.headers['user-agent']`) and stored hashed refresh tokens alongside timestamps to prevent token exposure in database breach scenarios.
+* **Challenge 3:** Cookie parsing and expiration mismatch between JWT payload `exp` and HTTP cookie `maxAge`.
+* **Resolution:** Standardized cookie `maxAge` to strictly mirror JWT expiration time in milliseconds (15 mins for access token, 7 days for refresh token).
+
+### Next Steps (Tomorrow):
+* **Refresh Token Rotation & Security:** Implement `POST /api/v1/auth/refresh-token` with automatic token rotation, revocation validation, and payload integrity checks.
+* **Branch Switching Engine:** Build `POST /api/v1/auth/switch-branch` for `SUPER_ADMIN` users with real-time Valkey cache synchronization.
+
+---
