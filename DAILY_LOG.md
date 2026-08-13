@@ -224,3 +224,27 @@
 * **Branch Switching Engine:** Build `POST /api/v1/auth/switch-branch` for `SUPER_ADMIN` users with real-time Valkey cache synchronization.
 
 ---
+
+## [2026-08-13] - Refresh Token Rotation, Session Invalidation & Valkey Switch-Branch Pipeline
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Refresh Token Rotation Engine:** Built `POST /api/v1/auth/refresh-token` endpoint implementing automatic single-use refresh token rotation to prevent replay and token hijacking attacks.
+* **Session Revocation Guardrails:** Implemented database validation against `sessions` table checking `isRevoked` flags and expiration before issuing fresh access tokens.
+* **SuperAdmin Branch Switch API:** Implemented `POST /api/v1/auth/switch-branch` endpoint allowing `SUPER_ADMIN` to dynamically switch operational branch contexts, persisting selected branch IDs into Valkey (`superadmin:active_branch:${userId}`).
+* **Contextual Token Re-issuance:** Engineered dynamic payload creation on token refresh to seamlessly inject newly switched branch IDs into regenerated `accessToken` claims without requiring re-authentication.
+* **Cookie Synchronizer:** Upgraded cookie dispatch pipeline to atomic multi-set operations, refreshing both `accessToken` and `refreshToken` cookies concurrently on valid rotation cycles.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Race conditions and stale token re-use during rapid concurrent refresh token requests from client interceptors.
+* **Resolution:** Enforced strict database status checks (`isRevoked: false`) and invalidated old refresh token records immediately before issuing and persisting the newly signed token pairs.
+* **Challenge 2:** Branch switching context loss across distributed requests.
+* **Resolution:** Centralized branch context resolution by querying Valkey cache directly within authorization middleware before falling back to default tenant branches.
+* **Challenge 3:** Preserving token payload cleanliness during regeneration.
+* **Resolution:** Sanitized decoded JWT payloads by stripping automatic claims (`iat`, `exp`, `nbf`) before re-signing to eliminate malformed token signature exceptions.
+
+### Next Steps (Tomorrow):
+* **Token Rotation Latency Optimization:** Benchmark and optimize refresh token cycle response times.
+* **Password Reset & Global Invalidation Architecture:** Design forgot password email pipeline with rate-limited OTP verification and global multi-device session revocation via `passwordChangedAt` timestamp tracking.
+
+---
