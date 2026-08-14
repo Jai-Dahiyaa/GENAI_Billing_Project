@@ -248,3 +248,28 @@
 * **Password Reset & Global Invalidation Architecture:** Design forgot password email pipeline with rate-limited OTP verification and global multi-device session revocation via `passwordChangedAt` timestamp tracking.
 
 ---
+
+## [2026-08-14] - Global Session Invalidation Migration, Forgot Password OTP & Valkey Security Architecture
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Global Session Revocation Architecture:** Designed multi-device instant logout mechanism by adding `passwordChangedAt` timestamp column to PostgreSQL `users` table via Prisma migration (`add_password_changed_at_to_user`).
+* **Registration Timestamp Baseline:** Updated atomic user registration SQL transaction to automatically initialize `passwordChangedAt` with `NOW()`, establishing a secure token issuance baseline from account creation.
+* **Forgot Password Pipeline:** Implemented `POST /api/v1/auth/forgot-password` endpoint accepting user email, validating account existence, generating a secure 6-digit cryptographic OTP, and hashing the OTP before storage.
+* **Valkey OTP Cache & Brute-Force Shield:** Stored structured OTP payloads in Valkey cache (`auth:otp:${userId}`) with a strict 10-minute TTL (`EX 600`) and a maximum limit of 3 failed attempts (`attamp: 3`) for brute-force protection.
+* **Temporary Reset Token Issuance:** Issued short-lived temporary JWT reset token (`purpose: 'RESET_PASSWORD'`, 10m expiry) via HTTP-only cookie while isolating state by clearing existing session cookies.
+* **Responsive Security Email Template:** Built branded, high-contrast HTML email notification for password reset with security warning boxes and delivered via Nodemailer SMTP transport pipeline.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Handling instantaneous multi-device logout without introducing heavy database queries on every single API request.
+* **Resolution:** Formulated timestamp comparison guardrails comparing JWT token issuance time (`token.iat`) strictly against `passwordChangedAt` timestamp (converted to seconds), enabling instant invalidation of stale tokens.
+* **Challenge 2:** Securing OTP storage against memory inspection and guessing attacks.
+* **Resolution:** Hashed generated OTPs prior to Valkey persistence and paired the key with structured metadata tracking decremental attempt limits.
+* **Challenge 3:** Preventing cookie collisions between regular session authentication and active reset workflows.
+* **Resolution:** Cleared existing `accessToken` and `refreshToken` cookies during forgot-password initiation to enforce clean state isolation in client storage.
+
+### Next Steps (Tomorrow):
+* **OTP Verification & Password Reset:** Implement `POST /api/v1/auth/reset-password` endpoint to verify hashed OTP from Valkey, decrement remaining attempts on failure, update hashed password, set `passwordChangedAt = NOW()`, and revoke all active sessions (`isRevoked = true`).
+* **Final Auth Test Suite:** Complete end-to-end testing across registration, login, refresh rotation, and password reset workflows.
+
+---
