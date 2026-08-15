@@ -273,3 +273,28 @@
 * **Final Auth Test Suite:** Complete end-to-end testing across registration, login, refresh rotation, and password reset workflows.
 
 ---
+
+## [2026-08-15] - Complete Auth State Machine, Token Scoping & Distributed Stale Token Invalidation
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **End-to-End Authentication Controller & State Machine:** Finalized the complete `AuthController` lifecycle encompassing user signup, OTP resend/verification, credential login, token refresh rotation, secure logout, and multi-step forgot password reset flows (`user-register`, `register-otp-resend`, `register-otp-verify`, `login`, `logged-out`, `refresh-token`, `forgot-password`, `forgot-otp-verify`, `password-reset`).
+* **Distributed Stale Token Invalidation in AuthGuard:** Engineered real-time token invalidation within `AuthGuard` by querying Valkey cache (`user:password_changed:${userId}`) with a 7-day TTL (`604800` seconds) and evaluating cached ISO timestamps against the incoming JWT's `decoded.iat` epoch seconds.
+* **Token Purpose Scoping:** Implemented cryptographic purpose binding (`USER-REGISTER`, `FORGOT_PASSWORD`, `FINAL_PASSWORD_RESET`) across temporary intermediate JWTs to eliminate cross-flow token substitution vulnerabilities.
+* **Cache Normalization & ISO Serialization:** Refactored `CacheService.setPasswordChangesAt` to safely parse heterogeneous Date/string inputs into standard ISO strings and store them cleanly in Valkey without JSON serialization overhead.
+* **Device Telemetry & Audit Tracking:** Wired `@ClientInfo()` decorator into registration verification and login controller methods to capture client IP addresses and User-Agent headers for session audit records.
+* **Type-Safe Guard Pipeline:** Extended `IUserPayload` into `IDecodedToken` to strictly type JWT `iat` and `exp` claims, resolving TypeScript compilation errors while preserving explicit `UnauthorizedException` messaging in the guard's catch block.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Preventing runtime type crashes (`passwordChangedAt.toISOString is not a function`) when database adapters returned raw string timestamps rather than JavaScript Date instances.
+  * **Resolution:** Introduced defensive date parsing (`passwordChangedAt instanceof Date ? passwordChangedAt : new Date(...)`) with fallback handling before calling `.toISOString()`.
+* **Challenge 2:** Millisecond vs. Second unit mismatch during token issuance comparison.
+  * **Resolution:** Normalized all cached ISO timestamps to numeric Unix epoch seconds (`Math.floor(new Date(cachedTimeString).getTime() / 1000)`) to strictly compare against JWT standard RFC 7519 `iat` claims.
+* **Challenge 3:** Generic error handlers masking specific authentication rejection reasons in `AuthGuard`.
+  * **Resolution:** Added conditional re-throwing for `UnauthorizedException` instances before hitting generic fallback error handlers, ensuring the client receives exact feedback ("Password was changed recently. Please log in again.").
+
+### Next Steps:
+* **Staff & Branch RBAC Module:** Design database schemas and repository contracts for Staff Management and Branch scoping.
+* **Role & Permission Guards:** Implement granular Role-Based Access Control (`RolesGuard`) for `SUPER_ADMIN`, `ADMIN`, and `STAFF` roles with branch switching capabilities.
+
+---
