@@ -298,3 +298,29 @@
 * **Role & Permission Guards:** Implement granular Role-Based Access Control (`RolesGuard`) for `SUPER_ADMIN`, `ADMIN`, and `STAFF` roles with branch switching capabilities.
 
 ---
+
+## [2026-08-18] - Generative AI Pipeline, LangChain Chat Architecture & PostgreSQL pgvector Engine Integration
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Dual-Layer Architecture Partitioning (Gateways vs. Worker):** Separated the AI infrastructure into synchronous HTTP gateways (`src/modules/gateways/ai`) for real-time dashboard interactions and asynchronous microservice workers (`src/modules/worker/ai`) backed by RabbitMQ event patterns (`process_ai_billing_prompt`) for background jobs.
+* **WhatsApp Service Refactoring & Utility Isolation:** Extracted Meta Graph API interactions, template payload schemas, and direct text dispatches from `WhatsappService` into a dedicated `WhatsappUtil` helper class (`src/utils/whatsapp.utils.ts`), streamlining the service layer strictly for cache management, timing-safe OTP verification, and rate limiting.
+* **LangChain Conversational Engine Configuration:** Implemented `LangChainAiService` utilizing `@langchain/google-genai` with Gemini 1.5 Flash (`model: 'gemini-1.5-flash'`, `temperature: 0.2`), establishing ChatPromptTemplate pipelines with `MessagesPlaceholder` for stateful multi-turn conversation memory.
+* **Vector Embeddings Pipeline:** Created `VectorService` wrapping Google's `text-embedding-004` model to generate 768-dimensional dense vector embeddings for single query strings and batch product catalog ingestion.
+* **PostgreSQL Native pgvector Setup:** Installed and activated the `vector` extension (`v0.8.1`) on PostgreSQL 18 (`billing_db`), updating `prisma/schema.prisma` with `postgresqlExtensions` preview features and `extensions = [pgvector(map: "vector")]` to enable native cosine distance similarity search (`<=>`).
+* **Prisma Client Generation & Schema Vector Typing:** Generated Prisma Client (`v7.9.1`) with native vector mapping support for high-performance product semantic matching queries without altering existing relational connections.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Upstream peer dependency conflict during npm installation of `@langchain/community` and `@langchain/core`.
+  * **Resolution:** Isolated core requirements to `@langchain/google-genai` and `@langchain/core`, executing installation via `--legacy-peer-deps` to bypass conflicting community sub-dependencies.
+* **Challenge 2:** NestJS IoC dependency resolution error (`UnknownDependenciesException: ConfigService at index [0]`) inside `AiWorkerModule`.
+  * **Resolution:** Explicitly imported `ConfigModule` into `AiWorkerModule.imports` and configured direct fallback access via `process.env` to ensure zero-breakage isolation.
+* **Challenge 3:** TypeScript constructor typing mismatch (`modelName` property deprecated in favor of `model` on `ChatGoogleGenerativeAI`).
+  * **Resolution:** Updated model instantiation configuration to strictly adhere to latest LangChain Google GenAI signature interfaces.
+
+### Next Steps:
+* **WhatsApp Verification & Webhook Ingestion:** Develop controllers and services for incoming WhatsApp webhook payload verification and message ingestion.
+* **Conversational AI & Live Chat Assistant:** Connect LangChain memory session handling to Valkey cache and build real-time dashboard live chat assistant endpoints.
+* **Product Catalog Vector Ingestion:** Implement automated 768-dim vector embedding generation on product creation/update hooks.
+
+---
