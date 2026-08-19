@@ -324,3 +324,31 @@
 * **Product Catalog Vector Ingestion:** Implement automated 768-dim vector embedding generation on product creation/update hooks.
 
 ---
+
+## [2026-08-19] - WhatsApp Webhook Architecture, Queue Decoupling & Stateful AI Memory Design
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **WhatsApp Meta Webhook Handshake Specification:** Designed the bidirectional webhook ingress flow within the gateway layer, detailing the GET challenge verification (`hub.mode`, `hub.verify_token`, `hub.challenge`) and incoming notification payloads.
+* **Webhook Asynchronous Queue Decoupling:** Architected the queue-forwarding mechanism to offload heavy raw message payloads to RabbitMQ (`whatsapp_events_queue`) instantly, ensuring the HTTP gateway responds with `200 OK` within Meta's strict 3-second timeout SLA.
+* **Stateful Chat Session Management Design:** Formatted Valkey sliding-window key structures (`ai:chat_history:${sessionId}`) with explicit TTL eviction to maintain multi-turn conversational context for the live chat assistant without token bloat.
+* **pgvector Query Layer Specification:** Structured parameterized raw SQL templates (`$queryRaw`) utilizing the cosine distance operator (`<=>`) for vector similarity filtering on 768-dimensional product embeddings.
+* **Error Resilience & Replay Strategy:** Defined Dead Letter Queue (DLQ) retry semantics for failed AI inference jobs dispatched by the microservice worker layer.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Preventing Meta API webhook disconnects caused by synchronous LLM latency.
+  * **Resolution:** Strictly decoupled payload validation from processing—the HTTP gateway validates payload signatures, emits an event to the RabbitMQ broker, and immediately terminates the HTTP request.
+* **Challenge 2:** Balancing vector search performance against dynamic tenant/branch isolation.
+  * **Resolution:** Combined composite SQL filters (`WHERE branchId = $1 AND stock > 0`) alongside the vector distance order clause (`ORDER BY embedding <=> $2 LIMIT 3`) to execute index-filtered similarity queries in a single pass.
+* **Challenge 3:** Chat memory token overflow across prolonged customer interactions.
+  * **Resolution:** Enforced an automated slicing rule to retain only the most recent 10 messages (5 user/model turns) in Valkey before feeding history into LangChain prompt templates.
+
+### Next Steps:
+* **Webhook Implementation:** Code the `WhatsappWebhookController` with GET/POST routes and security token validation.
+* **Live Chat Controller:** Implement the gateway endpoint `/ai/chat` wired directly to `LangChainAiService` and Valkey session caching.
+* **Prisma Product Migration:** Add the `Product` model with `vector(768)` to `schema.prisma` and execute the migration.
+
+### Developer Reflection:
+> *"Designing resilient ingestion systems requires separating speed from compute. By enforcing asynchronous boundaries between incoming webhooks and AI inference pipelines, the system remains reliable under burst traffic while preserving deep conversational capabilities."*
+
+---
