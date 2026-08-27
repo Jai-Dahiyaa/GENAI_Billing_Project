@@ -1,0 +1,270 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+model User {
+  id                String          @id @default(dbgenerated("gen_random_uuid()"))
+  name              String
+  email             String          @unique
+  phone             String?         @unique
+  passwordHash      String
+  role              Role            @default(SUPER_ADMIN)
+  branchId          String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  passwordChangedAt DateTime?       @map("password_changed_at")
+  isActive          Boolean         @default(true)
+  isPhoneVerified   Boolean         @default(false)
+  auditLogs         AuditLog[]
+  invoices          Invoice[]
+  sessions          UserSession[]
+  transfers         StockTransfer[] @relation("InitiatedBy")
+  branch            Branch?         @relation(fields: [branchId], references: [id])
+
+  @@map("users")
+}
+
+model UserSession {
+  id           String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId       String
+  refreshToken String   @unique
+  ipAddress    String?
+  userAgent    String?
+  isRevoked    Boolean  @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model CompanyProfile {
+  id              String   @id @default(dbgenerated("gen_random_uuid()"))
+  businessName    String
+  logoUrl         String?
+  address         String
+  phone           String   @unique
+  gstin           String?
+  bankName        String?
+  accountNumber   String?
+  ifscCode        String?
+  upiId           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String   @unique
+  isPhoneVerified Boolean  @default(false)
+
+  branches        Branch[]
+
+  @@map("company_profile")
+}
+
+model Branch {
+  id                String          @id @default(dbgenerated("gen_random_uuid()"))
+  branchName        String
+  city              String?
+  address           String?
+  phone             String?
+  invoicePrefix     String
+  lastInvoiceNo     Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Dono par '?' lagao:
+  companyId         String?
+  userId            String?
+  company           CompanyProfile? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Status flags
+  isActive          Boolean         @default(true)
+  isMainBranch      Boolean         @default(false)
+  isPhoneVerified   Boolean         @default(false)
+
+  // Relations
+  branchStocks      BranchStock[]
+  damageLogs        DamageLog[]
+  invoices          Invoice[]
+  outgoingTransfers StockTransfer[] @relation("FromBranch")
+  incomingTransfers StockTransfer[] @relation("ToBranch")
+  users             User[]
+
+  @@unique([companyId, invoicePrefix])
+  @@index([companyId, isActive])
+  @@index([userId])
+  @@map("branches")
+}
+
+model Product {
+  id             String          @id @default(dbgenerated("gen_random_uuid()"))
+  name           String
+  category       String
+  sku            String          @unique
+  barcode        String?         @unique
+  hsnCode        String?
+  costPrice      Float
+  sellingPrice   Float
+  taxRate        Float           @default(0.0)
+  purchaseUnit   UnitType        @default(PETI)
+  baseUnit       UnitType        @default(PIECE)
+  piecesPerPeti  Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  branchStocks   BranchStock[]
+  damageLogs     DamageLog[]
+  invoiceItems   InvoiceItem[]
+  stockTransfers StockTransfer[]
+
+  @@map("products")
+}
+
+model BranchStock {
+  id           String   @id @default(dbgenerated("gen_random_uuid()"))
+  productId    String
+  branchId     String
+  quantity     Int      @default(0)
+  reorderLevel Int      @default(10)
+  updatedAt    DateTime @updatedAt
+  branch       Branch   @relation(fields: [branchId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id])
+
+  @@unique([productId, branchId])
+  @@map("branch_stocks")
+}
+
+model StockTransfer {
+  id             String         @id @default(dbgenerated("gen_random_uuid()"))
+  fromBranchId   String
+  toBranchId     String
+  productId      String
+  quantityPieces Int
+  status         TransferStatus @default(PENDING)
+  initiatedById  String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  fromBranch     Branch         @relation("FromBranch", fields: [fromBranchId], references: [id])
+  initiatedBy    User           @relation("InitiatedBy", fields: [initiatedById], references: [id])
+  product        Product        @relation(fields: [productId], references: [id])
+  toBranch       Branch         @relation("ToBranch", fields: [toBranchId], references: [id])
+
+  @@map("stock_transfers")
+}
+
+model DamageLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()"))
+  branchId       String
+  productId      String
+  quantityPieces Int
+  reason         String
+  lossAmount     Float
+  createdAt      DateTime @default(now())
+  branch         Branch   @relation(fields: [branchId], references: [id])
+  product        Product  @relation(fields: [productId], references: [id])
+
+  @@map("damage_logs")
+}
+
+model Customer {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()"))
+  name               String
+  phone              String    @unique
+  email              String?
+  gstin              String?
+  address            String?
+  outstandingBalance Float     @default(0.0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  invoices           Invoice[]
+
+  @@map("customers")
+}
+
+model Invoice {
+  id            String        @id @default(dbgenerated("gen_random_uuid()"))
+  invoiceNo     String        @unique
+  branchId      String
+  userId        String
+  customerId    String?
+  subTotal      Float
+  taxTotal      Float
+  discount      Float         @default(0.0)
+  netTotal      Float
+  paymentMode   PaymentMode   @default(CASH)
+  paidAmount    Float         @default(0.0)
+  udhaarAmount  Float         @default(0.0)
+  status        InvoiceStatus @default(PAID)
+  isAiGenerated Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  items         InvoiceItem[]
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id         String  @id @default(dbgenerated("gen_random_uuid()"))
+  invoiceId  String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  taxAmount  Float
+  totalPrice Float
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+model AuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  action    String
+  details   Json?
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+enum Role {
+  SUPER_ADMIN
+  BRANCH_MANAGER
+  CASHIER
+  ACCOUNTANT
+}
+
+enum UnitType {
+  PIECE
+  PETI
+  BOX
+  KG
+  LITER
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  CREDIT_UDHAAR
+  SPLIT
+}
+
+enum InvoiceStatus {
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum TransferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
