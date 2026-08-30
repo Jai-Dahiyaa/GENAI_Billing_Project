@@ -6,7 +6,8 @@ export const RABBITMQ_PATTERNS = {
   USER_REGISTER_OTP_SEND: 'user_register_otp_send',
   USER_REGISTER_SUCCESSFULLY_EMAIL: 'user_successfully_register',
   FORGORT_PASSWORD_OTP_SEND: 'forgot_Otp_Send',
-  PASSWORD_RESET_EMAIL_SEND: 'password_reset_email_send'
+  PASSWORD_RESET_EMAIL_SEND: 'password_reset_email_send',
+  AI_PARSE_WHATSAPP_INVOICE: 'ai_parse_whatsapp_invoice'
 };
 
 export const RABBITMQ_CLIENTS = {

@@ -1,7 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { RABBITMQ_CLIENTS, RABBITMQ_QUEUES } from './rabbitmq.constants';
-import { EmailJobs } from '../../jobs/email.jobs';
 
 @Global()
 @Module({
@@ -18,7 +17,6 @@ import { EmailJobs } from '../../jobs/email.jobs';
       },
     ]),
   ],
-  providers: [EmailJobs],
-  exports: [ClientsModule, EmailJobs],
+  exports: [ClientsModule],
 })
 export class RabbitMQModule {}
