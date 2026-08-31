@@ -71,6 +71,7 @@ export class AuthGuard implements CanActivate {
         email: decoded.email,
         role: decoded.role,
         branchId: decoded.branchId,
+        companyId: decoded.companyId
       };
 
       if (decoded.role?.toUpperCase() === 'SUPER_ADMIN') {
