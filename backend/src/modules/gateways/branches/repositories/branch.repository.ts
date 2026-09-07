@@ -9,15 +9,48 @@ export class BranchRepo {
     ) { }
 
     async branchCreate(data: BranchInterface.BranchCreate): Promise<BranchInterface.BranchCreateRes> {
-        const res = await this.prisma.$queryRaw`
-        INSERT INTO 
-        "branches" ("branchName", "city", "phone", "invoicePrefix", "updatedAt", "userId", "isActive", "companyId", "address") 
-        VALUES (${data.branchName}, ${data.city}, ${data.phone}, ${data.invoicePrefix}, NOW(), ${data.userId}, true, ${data.companyId}, ${data.address})
-        RETURNING
-         "id", "branchName", "invoicePrefix", "city", "address", "phone", "isPhoneVerified", "isMainBranch", "isActive", "lastInvoiceNo", "createdAt";
-        `;
+        return await this.prisma.$transaction(async (tx) => {
+            const countRes = await tx.$queryRaw<{ count: string }[]>`
+            SELECT COUNT(*)::text AS count 
+            FROM "branches" 
+            WHERE "companyId" = ${data.companyId};
+            `;
 
-        return res[0] || null;
+            const branchCount = parseInt(countRes[0]?.count || '0', 10);
+            const isFirstBranch = branchCount === 0;
+
+            const res = await tx.$queryRaw<BranchInterface.BranchCreateRes[]>`
+            INSERT INTO "branches" (
+                "branchName", 
+                "city", 
+                "phone", 
+                "invoicePrefix", 
+                "updatedAt", 
+                "userId", 
+                "isActive", 
+                "companyId", 
+                "address",
+                "isMainBranch"
+            ) 
+            VALUES (
+                ${data.branchName}, 
+                ${data.city}, 
+                ${data.phone}, 
+                ${data.invoicePrefix}, 
+                NOW(), 
+                ${data.userId}, 
+                true, 
+                ${data.companyId}, 
+                ${data.address},
+                ${isFirstBranch}
+            )
+            RETURNING
+                "id", "branchName", "invoicePrefix", "city", "address", "phone", 
+                "isPhoneVerified", "isMainBranch", "isActive", "lastInvoiceNo", "createdAt";
+            `;
+
+            return res[0] || null;
+        });
     }
 
     async branchListGet(companyId: string): Promise<BranchInterface.IBranchResponse[]> {

@@ -30,46 +30,29 @@ export class AuthRepository {
                 name: string;
                 role: string;
             }[]>`
-            INSERT INTO "users" ("name", "email", "passwordHash", "password_changed_at") 
-            VALUES (
-                ${data.name}, 
-                ${data.email}, 
-                ${data.password},
-                NOW() 
-              ) 
-              RETURNING "id", "email", "role", "name", "password_changed_at";
-            `;
-
-            const userId = userRes[0].id;
-
-            const branchRes = await tx.$queryRaw<{ id: string }[]>`
-            INSERT INTO "branches" ("userId", "branchName", "invoicePrefix", "updatedAt")
-            VALUES 
-            (${userId}, 'Main Branch', 'INV-MAIN', NOW())
-            RETURNING "id";
-            `;
-
-            const branchId = branchRes[0].id;
-
-            await tx.$executeRaw`
-            UPDATE "users" 
-            SET "branchId" = ${branchId} 
-            WHERE "id" = ${userId}; 
-            `;
+                INSERT INTO "users" ("name", "email", "passwordHash", "password_changed_at") 
+                VALUES (
+                    ${data.name}, 
+                    ${data.email}, 
+                    ${data.password},
+                    NOW() 
+                ) 
+                RETURNING "id", "email", "role", "name", "password_changed_at";
+                `;
 
             const userData: {
-                id: string,
-                email: string,
-                name: string,
-                role: string,
-                branchId: string
+                id: string;
+                email: string;
+                name: string;
+                role: string;
+                branchId: string | null;
             } = {
                 id: userRes[0].id,
                 email: userRes[0].email,
                 name: userRes[0].name,
                 role: userRes[0].role,
-                branchId: branchId
-            }
+                branchId: null,
+            };
 
             return userData;
         });
@@ -113,23 +96,24 @@ export class AuthRepository {
         branchId?: string;
     } | null> {
         const res = await this.prisma.$queryRaw<{
-            id: string;
-            email: string;
-            role: string;
-            branchId: string;
-            companyId: string | null;
-        }[]>`
-    SELECT 
-        u."id",
-        u."email",
-        u."role",
-        u."branchId",
-        c."id" AS "companyId"
-    FROM "users" u
-    LEFT JOIN "company_profile" c ON c."userId" = u."id"
-    WHERE u."email" = ${email}
-    LIMIT 1;
-    `;
+        id: string;
+        email: string;
+        role: string;
+        companyId: string | null;
+        branchId: string | null;
+    }[]>`
+        SELECT 
+            u."id",
+            u."email",
+            u."role",
+            c."id" AS "companyId",
+            COALESCE(b."id", u."branchId") AS "branchId"
+        FROM "users" u
+        LEFT JOIN "company_profile" c ON c."userId" = u."id"
+        LEFT JOIN "branches" b ON b."companyId" = c."id" AND b."isMainBranch" = true AND b."isActive" = true
+        WHERE u."email" = ${email}
+        LIMIT 1;
+        `;
 
         if (!res || res.length === 0) {
             return null;
@@ -137,27 +121,20 @@ export class AuthRepository {
 
         const user = res[0];
 
-        if (user.role === 'SUPER_ADMIN') {
+        if (user.role === 'SUPER_ADMIN' && user.branchId) {
             const activeBranchIdPayload: AuthInterface.activeBranchId = {
                 userId: user.id,
                 branchId: user.branchId,
             };
 
             await this.cache.setActiveBranchId(activeBranchIdPayload);
-
-            return {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                companyId: user.companyId ?? null,
-            };
         }
 
         return {
             id: user.id,
             email: user.email,
             role: user.role,
-            branchId: user.branchId,
+            branchId: user.branchId ?? null,
             companyId: user.companyId ?? null,
         };
     }

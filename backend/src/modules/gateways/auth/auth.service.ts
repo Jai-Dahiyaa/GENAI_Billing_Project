@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthRepository } from "./repositories/auth.repository";
 import { CacheService } from "../../../common/cache/cache.service";
@@ -7,8 +7,6 @@ import { OtpUtil } from "../../../utils/otp.utils";
 import { PasswordUtils } from "../../../utils/password.utils";
 import { EmailJobs } from "../../../jobs/email.jobs";
 import { JwtService } from "../../../utils/jwt.utils";
-import { WhatsappUtil } from "../../../utils/whatsapp.utils";
-import { whatsappConfig } from "../../../config/whatsapp.config";
 import { SmsUtil } from "../../../utils/sms.utils";
 
 @Injectable()
@@ -16,7 +14,6 @@ export class AuthService {
 
     constructor(
         private readonly authRepo: AuthRepository,
-        private readonly config: ConfigService,
         private readonly cache: CacheService,
         private readonly emailJobs: EmailJobs,
         private readonly jwtService: JwtService
@@ -95,13 +92,6 @@ export class AuthService {
 
         const dbResponse = await this.authRepo.userRegsiterData(dbValuePayload);
 
-        const activeBranchIdPayload: AuthInterface.activeBranchId = {
-            userId: dbResponse.id,
-            branchId: dbResponse.branchId
-        }
-
-        await this.cache.setActiveBranchId(activeBranchIdPayload);
-
         const tokenPayload: {
             userId: string,
             email: string,
@@ -139,7 +129,7 @@ export class AuthService {
         const password = await this.authRepo.userLogin(data.email);
 
         if (!password) {
-            throw new BadRequestException(`User Not Registered. Please register first!`);
+            throw new NotFoundException(`User Not Registered. Please register first!`);
         }
 
         const passwordVerify = await PasswordUtils.compare(data.password, password.passwordHash);

@@ -17,6 +17,13 @@ export class BranchService {
             throw new BadRequestException("Something is Wrong Please try again After someTime.")
         }
 
+        if (dbResponse.isMainBranch) {
+            await this.cache.setActiveBranchId({
+                userId: data.userId,
+                branchId: dbResponse.id,
+            });
+        }
+
         await this.cache.branchDataStore(data.companyId, dbResponse)
 
         return dbResponse;
@@ -48,7 +55,6 @@ export class BranchService {
         const originalForm = JSON.parse(cacheDataGet);
 
         if (originalForm) {
-            console.log("HIT HERE CACHE: ", originalForm)
             return originalForm;
         }
 
@@ -122,7 +128,7 @@ export class BranchService {
     }
 
     async toggleBranchStatus(companyId: string, branchId: string): Promise<BranchInterface.IBranchResponse> {
-        
+
         const branch = await this.repo.branchDataGet(companyId, branchId);
 
         if (!branch) {
