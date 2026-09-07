@@ -348,6 +348,30 @@
 * **Live Chat Controller:** Implement the gateway endpoint `/ai/chat` wired directly to `LangChainAiService` and Valkey session caching.
 * **Prisma Product Migration:** Add the `Product` model with `vector(768)` to `schema.prisma` and execute the migration.
 
+## [2026-09-07] - Multi-Branch Lifecycle Finalization, Session Context Switching & Telemetry Stats
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Branch Controller Architecture & Refactoring:** Standardized all branch gateway endpoints with strict DTO typing, Role-Based Access Control (`SUPER_ADMIN`, `BRANCH_HEAD`), and consistent response envelopes (`{ status, message, data }`).
+* **Active Session Context Switch (`set-active/:id`):** Engineered the tenant session switching endpoint validating company ownership, active tenant state, and caching the selected branch context directly into Valkey for downstream request guards.
+* **Unified Cache Resolution (`current-active`):** Implemented the current active branch resolver utilizing a unified cache key pattern (`branch:${companyId}:${branchId}`), eliminating duplicate cache allocations across the session lifecycle.
+* **Two-Factor Phone Verification & Resend Flow:** Completed the full verification loop for branch contact updates, including hashed OTP persistence in Valkey, attempt decrementing (max 3 attempts), automated eviction upon breach, and cache invalidation on successful commits.
+* **Branch Telemetry & Statistics Layer (`stats/:id`):** Architected the branch telemetry endpoint computing real-time staff counts via raw SQL subqueries along with dynamic next-invoice sequence calculation (`prefix-0001` zero-padded preview) from branch sequence counters.
+* **Static Route Collision Safeguards:** Prioritized literal routes (`/current-active`, `/stats/:id`, `/list`) above dynamic UUID parameterized routes (`/:id`) in the controller to resolve NestJS route-matching ambiguity and prevent premature UUID pipe rejection.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** NestJS `ParseUUIDPipe` throwing `400 Validation failed` on `/branch/current-active`.
+  * **Resolution:** Re-ordered controller route registration by moving static literal paths above dynamic parameterized routes (`:id`), ensuring the router matches deterministic strings before triggering UUID transformation pipes.
+* **Challenge 2:** Cache fragmentation and dirty reads caused by separate storage keys for identical branch entities.
+  * **Resolution:** Consolidated all branch read and active context lookups under a single unified cache key structure (`branch:${companyId}:${branchId}`), ensuring single-point cache invalidation during updates, phone verification, and status toggles.
+* **Challenge 3:** Relational subquery crash (`column u.companyId does not exist`) in stats raw SQL query.
+  * **Resolution:** Removed the redundant company filter from the user count subquery since the outer query already enforces strict multi-tenant boundary checks on `branches.companyId`.
+
+### Next Steps:
+* **Customer / Party Management Module:** Structure database models and CRUD endpoints for parties, customer ledger tracking, and GSTIN validations.
+* **Product & Multi-Branch Inventory Catalog:** Design multi-branch stock mapping tables, SKU/barcode schemas, and inventory alert thresholds.
+* **Daily Skill Routine:** Dedicate fixed daily slots for technical interview preparation, LeetCode database SQL problem solving, and backend core architecture.
+
 ### Developer Reflection:
 > *"Designing resilient ingestion systems requires separating speed from compute. By enforcing asynchronous boundaries between incoming webhooks and AI inference pipelines, the system remains reliable under burst traffic while preserving deep conversational capabilities."*
 
