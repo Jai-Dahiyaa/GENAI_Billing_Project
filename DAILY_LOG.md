@@ -348,6 +348,8 @@
 * **Live Chat Controller:** Implement the gateway endpoint `/ai/chat` wired directly to `LangChainAiService` and Valkey session caching.
 * **Prisma Product Migration:** Add the `Product` model with `vector(768)` to `schema.prisma` and execute the migration.
 
+---
+
 ## [2026-09-07] - Multi-Branch Lifecycle Finalization, Session Context Switching & Telemetry Stats
 **Author / Lead Developer:** Sanket Dahiya
 
@@ -371,6 +373,35 @@
 * **Customer / Party Management Module:** Structure database models and CRUD endpoints for parties, customer ledger tracking, and GSTIN validations.
 * **Product & Multi-Branch Inventory Catalog:** Design multi-branch stock mapping tables, SKU/barcode schemas, and inventory alert thresholds.
 * **Daily Skill Routine:** Dedicate fixed daily slots for technical interview preparation, LeetCode database SQL problem solving, and backend core architecture.
+
+---
+
+## [2026-09-08] - Staff Management Lifecycle: Registration Pipeline, Valkey Throttling & List Retrieval
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Staff Initiation Endpoint (`POST /staff/create/initiate`):** Architected the staff onboarding flow featuring pre-registration conflict checks, bcrypt password hashing, and in-memory session staging using Valkey (Redis-compatible).
+* **Two-Factor Staff Verification (`POST /staff/create/verify-email`):** Built the email verification lifecycle enforcing cryptographic OTP comparison via `OtpUtil`, strict attempt throttling (max 3 tries), automatic cache eviction on failure threshold, and atomic raw PostgreSQL insertion returning safe sanitised user structures.
+* **Stateful OTP Resend Gateway (`POST /staff/create/initiate/resend-otp`):** Implemented the resend mechanism leveraging frontend-held staff emails to refresh session TTLs, reset remaining attempts, and avoid unnecessary user re-entry friction.
+* **Secure Staff Directory Gateway (`GET /staff/list`):** Developed the tenant-isolated staff retrieval endpoint querying PostgreSQL directly via Prisma `$queryRaw`, deliberately omitting sensitive fields (`passwordHash`) while enforcing multi-tenant isolation through `companyId`, `branchId`, and role filtering (`BRANCH_MANAGER`, `CASHIER`, `STAFF`).
+* **Multi-Tenant Cache Collision Resolution:** Refactored temporary registration keys to append the candidate's unique email (`staff:Initiate:${companyId}:${branchId}:${email}`), eliminating race conditions and key collisions during concurrent staff onboardings across branches.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** `TypeError: Cannot read properties of null (reading 'email')` on registration initiation.
+  * **Resolution:** Replaced unsafe nested access (`findEmail.email === data.email`) with an explicit presence check (`if (findEmail)`), accommodating database queries that return `null` when a user does not exist yet.
+* **Challenge 2:** `TypeError [ERR_INVALID_ARG_TYPE]` inside `Buffer.from` during OTP verification.
+  * **Resolution:** Aligned payload key names between initiate caching (`hashOtp`) and verification retrieval, preventing `undefined` arguments from hitting the cryptographic hash validation utility.
+* **Challenge 3:** Incorrect cache eviction keys and misnamed decrement counters in failure handlers.
+  * **Resolution:** Fixed copy-pasted branch keys (`Branch:PhoneOTP:...`) back to contextual staff session keys, corrected the decrement counter property reference (`originalForm.attempts`), and ensured remaining attempts re-persist via `staffInitiateStore`.
+* **Challenge 4:** Ambiguous staff session addressing during OTP resend requests.
+  * **Resolution:** Mandated the target staff email within the resend and verification DTO payloads (maintained in frontend memory), guaranteeing deterministic cache lookups when multiple onboarding flows run in parallel.
+
+### Next Steps:
+* **Staff Profile Resolution (`GET /staff/:id`):** Implement single staff profile retrieval with multi-tenant ownership guards.
+* **Staff Status Switch (`PATCH /staff/:id/status`):** Build active/inactive toggling logic ensuring audit trail and historical bill referential integrity without hard deletions.
+* **Cross-Branch Transfer Pipeline (`PATCH /staff/:id/transfer`):** Develop branch reassignment endpoints updating `branchId` references and invalidating active session tokens.
+
+---
 
 ### Developer Reflection:
 > *"Designing resilient ingestion systems requires separating speed from compute. By enforcing asynchronous boundaries between incoming webhooks and AI inference pipelines, the system remains reliable under burst traffic while preserving deep conversational capabilities."*
