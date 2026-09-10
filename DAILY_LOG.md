@@ -403,6 +403,27 @@
 
 ---
 
+## [2026-09-10] - Staff Profile Resolution, Status Toggle Lifecycle & WhatsApp Cloud API Integration
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Staff Profile Retrieval Endpoint (`GET /staff/:id`):** Built single staff member resolution querying PostgreSQL directly via Prisma `$queryRaw`, enforcing strict multi-tenant branch ownership (`companyId` + `branchId`) while stripping sensitive credentials like `passwordHash`.
+* **Parameter Validation & Pipe Guarding:** Integrated NestJS `ParseUUIDPipe` on the dynamic route parameter to catch malformed UUIDs at the gateway level before hitting database layers, and positioned the route correctly beneath static paths to avoid collision.
+* **Staff Status Toggle Pipeline (`PATCH /staff/:id/status`):** Implemented active/inactive status switching (`isActive = NOT "isActive"`) to preserve historical invoice/audit trail referential integrity without resorting to destructive hard deletions.
+* **WhatsApp Cloud API Integration:** Configured and established initial WhatsApp Cloud API infrastructure for automated backend messaging and transactional notification workflows.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** Potential cross-branch data leaks during single staff lookups by branch managers.
+  * *Resolution:* Mandated composite multi-tenant filters (`id` + `companyId` + `branchId`) directly inside the raw SQL query along with a `LIMIT 1` constraint to enforce strict tenant boundary isolation and optimize index lookups.
+* **Challenge 2:** Preserving billing and audit trail referential integrity during staff lifecycle changes.
+  * *Resolution:* Avoided hard delete operations for staff accounts, opting instead for a toggleable `isActive` boolean state that instantly revokes operational access while retaining historical relations to past bills.
+
+### Next Steps:
+* **Cross-Branch Transfer Pipeline (`PATCH /staff/:id/transfer`):** Develop branch reassignment endpoints updating `branchId` references and clearing stale session caches.
+* **Frontend Integration Phase:** Finalize remaining staff management routes to transition full focus toward frontend UI integration.
+
+---
+
 ### Developer Reflection:
 > *"Designing resilient ingestion systems requires separating speed from compute. By enforcing asynchronous boundaries between incoming webhooks and AI inference pipelines, the system remains reliable under burst traffic while preserving deep conversational capabilities."*
 
