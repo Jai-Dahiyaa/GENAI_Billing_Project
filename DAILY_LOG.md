@@ -424,6 +424,27 @@
 
 ---
 
+## [2026-09-12] - Cross-Branch Staff Transfer Pipeline & Cache Invalidation
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Staff Transfer Gateway (`PATCH /staff/:id/transfer`):** Architected the cross-branch reassignment pipeline enforcing atomic updates to user `branchId` references while strictly safeguarding multi-tenant company isolation.
+* **Target Branch & Assignment Validations:** Implemented multi-stage pre-transfer validation checks ensuring target branch existence, confirming target branch active status, and preventing redundant reassignment cycles to identical branches.
+* **Multi-Branch Cache Invalidation:** Designed cross-branch cache clearance logic to evict stale user profile keys (`staff:User:...`) and wipe staff directory lists (`staff:List:...`) for both the source branch and target branch inside Valkey.
+* **Direct Company-Level Staff Resolution (`staffFindByIdOnlyCompany`):** Implemented isolated query resolution to locate candidates across company boundaries without scoping by source branch, facilitating administrative transfers across all locations.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** `404 Not Found ("Staff member not found.")` triggered during branch reassignment requests.
+  * *Resolution:* Identified premature filtering where `newBranchId` was mistakenly supplied to the pre-existing `staffFindById` query. Decoupled branch checks by introducing `staffFindByIdOnlyCompany`, fetching candidate state using purely `id` and `companyId` before verifying target destinations.
+* **Challenge 2:** Cache pollution and stale directory reads across originating and destination branches.
+  * *Resolution:* Injected a multi-key eviction sequence in Valkey immediately after database commit, destroying both the originating branch's directory cache (`oldBranchId`) and the recipient branch's cached directory (`newBranchId`) to maintain state coherence across client views.
+
+### Next Steps:
+* **Staff Phone Verification & Password Recovery:** Leverage established cryptographic verification patterns to build telephone authentication and password reset gateways.
+* **Cloud Deployment Pipeline:** Containerize backend services and initiate cloud server configuration ahead of full-scale frontend integration.
+
+---
+
 ### Developer Reflection:
 > *"Designing resilient ingestion systems requires separating speed from compute. By enforcing asynchronous boundaries between incoming webhooks and AI inference pipelines, the system remains reliable under burst traffic while preserving deep conversational capabilities."*
 
