@@ -445,6 +445,31 @@
 
 ---
 
+## [2026-09-13] - Cross-Branch Staff Transfer Pipeline & Full-Stack Cloudflare Tunnel Integration
+**Author / Lead Developer:** Sanket Dahiya
+
+### What I Did Today:
+* **Backend Staff Transfer Pipeline (`PATCH /staff/:id/transfer`):** Architected the cross-branch reassignment system enforcing atomic updates to user `branchId` references while safeguarding multi-tenant company isolation.
+* **Target Branch & Assignment Validations:** Implemented pre-transfer validation checks ensuring target branch existence, active status confirmation, and prevention of redundant self-reassignments.
+* **Multi-Branch Valkey Cache Invalidation:** Designed cache clearance logic to evict stale user profile keys (`staff:User:...`) and wipe staff directory lists (`staff:List:...`) for both source and target branches.
+* **Direct Company-Level Resolution (`staffFindByIdOnlyCompany`):** Implemented isolated query resolution to locate candidates across company boundaries without scoping by source branch.
+* **Frontend-Backend Tunnel Connection:** Integrated the Angular 18+ standalone frontend with the NestJS backend over Cloudflare quick tunnels, establishing smooth communication via `/api/v1` routes.
+* **Angular Bootstrap & UI Dashboard:** Resolved `zone.js` runtime bootstrapping dependencies, aligned component configurations, and built a live status dashboard card with a raw JSON response viewer.
+
+### Challenges & System Architecture Decisions:
+* **Challenge 1:** `404 Not Found ("Staff member not found.")` triggered during backend branch reassignment requests.
+  * *Resolution:* Decoupled branch checks by introducing `staffFindByIdOnlyCompany`, fetching candidate state using purely `id` and `companyId` before verifying destinations.
+* **Challenge 2:** Stale cache pollution across originating and destination branches in Valkey.
+  * *Resolution:* Injected a multi-key eviction sequence immediately after database commit, destroying both the source (`oldBranchId`) and recipient (`newBranchId`) directory caches.
+* **Challenge 3:** Frontend blank screen crashes (`NG0908: Zone.js required`).
+  * *Resolution:* Explicitly installed and imported `zone.js` in `main.ts` and configured `@Public()` decorator bypasses on the backend `AuthGuard` for health checks.
+
+### Next Steps:
+* **Staff Phone Verification & Password Recovery:** Build cryptographic telephone authentication and password reset gateways.
+* **Frontend Navigation & Feature Modules:** Scaffold routing, layout shells, and management views for upcoming billing workflows.
+
+---
+
 ### Developer Reflection:
 > *"Designing resilient ingestion systems requires separating speed from compute. By enforcing asynchronous boundaries between incoming webhooks and AI inference pipelines, the system remains reliable under burst traffic while preserving deep conversational capabilities."*
 
